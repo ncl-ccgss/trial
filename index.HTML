@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>DSE Biology: Integrated Cardiac & Tissue Fluid Lab</title>
+    <style>
+        :root {
+            --artery: #ef5350; --vein: #42a5f5; --water: #00e5ff;
+            --rbc: #c62828; --cell: #fff3e0; --nucleus: #a1887f;
+            --panel: #263238; --heart-red: #d32f2f; --muscle-dark: #b71c1c; --vessel-gray: #9e9e9e;
+            --glucose: #ffd54f; --amino: #81c784;
+            --lymph: #fff59d; /* 新增淋巴液顏色 */
+            --ai-primary: #673ab7;
+        }
+        body { font-family: "PingFang TC", "Helvetica", sans-serif; background: #eceff1; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        #main-container { width: 1300px; display: flex; flex-direction: column; gap: 30px; }
+        
+        .section-card { background: white; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); padding: 30px; position: relative; }
+        .part-header { background: #455a64; color: white; display: inline-block; padding: 6px 20px; border-radius: 20px; font-weight: bold; margin-bottom: 15px; }
+        
+        .control-panel { background: var(--panel); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; display: flex; gap: 25px; align-items: center; }
+        .preset-group { display: flex; flex-direction: column; gap: 10px; padding-right: 20px; border-right: 1px solid rgba(255,255,255,0.2); }
+        .preset-btn { background: #546e7a; color: white; border: none; padding: 8px 15px; border-radius: 6px; cursor: pointer; font-size: 0.9em; transition: 0.2s; }
+        .preset-btn:hover { background: #78909c; }
+        .preset-btn.active { background: #ffeb3b; color: #333; font-weight: bold; }
+
+        .gauge-box { background: rgba(255,255,255,0.1); padding: 10px; border-radius: 8px; flex: 1; text-align: center; border: 1px solid rgba(255,255,255,0.2); }
+        .gauge-val { font-size: 1.4em; font-weight: bold; color: #ffeb3b; display: block; }
+
+        #heart-viewport { height: 360px; display: flex; align-items: center; justify-content: center; background: #fdfdfd; border-radius: 12px; position: relative; }
+        #heart-svg { width: 240px; transition: transform 0.1s ease-out; filter: drop-shadow(0 5px 15px rgba(0,0,0,0.1)); }
+        .heart-muscle { fill: var(--heart-red); stroke: var(--muscle-dark); stroke-width: 2.5; }
+        .vessels { fill: var(--vessel-gray); stroke: #616161; stroke-width: 1.2; }
+        .vessels-dark { fill: #757575; stroke: #424242; stroke-width: 1.2; }
+        
+        #viewport { position: relative; width: 100%; height: 450px; background: #fff; border: 1px solid #ddd; border-radius: 8px; overflow: hidden; }
+        .cell-layer { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(6, 1fr); opacity: 0.2; pointer-events: none; }
+        .cell { border: 1px solid #decba4; background: var(--cell); border-radius: 35%; margin: 6px; display: flex; align-items: center; justify-content: center; }
+        .nucleus { width: 6px; height: 6px; background: var(--nucleus); border-radius: 50%; }
+        .vessel-svg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+        
+        .p { position: absolute; border-radius: 50%; pointer-events: none; transform: translate(-50%, -50%); }
+        .rbc { background: var(--rbc); width: 20px; height: 20px; z-index: 25; box-shadow: inset -2px -2px 4px rgba(0,0,0,0.4); }
+        .mol { width: 6px; height: 6px; z-index: 10; }
+        .water { background: var(--water); box-shadow: 0 0 4px var(--water); }
+        .glucose { background: var(--glucose); border-radius: 2px; }
+        .amino { background: var(--amino); }
+        .lymph-p { background: #fbc02d; box-shadow: 0 0 3px #fbc02d; } /* 淋巴液粒子 */
+
+        .legend-bar { margin-top: 15px; display: flex; justify-content: center; gap: 25px; padding: 10px; background: #f8f9fa; border-radius: 8px; font-size: 0.85em; }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+        /* AI Chatbot Styles保持不變 */
+        #ai-button { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; background: var(--ai-primary); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 15px rgba(0,0,0,0.3); z-index: 1000; font-size: 24px; transition: 0.3s; }
+        #ai-button:hover { transform: scale(1.1); }
+        #ai-chat-window { position: fixed; bottom: 100px; right: 30px; width: 350px; height: 500px; background: white; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); display: none; flex-direction: column; z-index: 1000; overflow: hidden; border: 1px solid #ddd; }
+        .chat-header { background: var(--ai-primary); color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
+        .chat-content { flex: 1; padding: 15px; overflow-y: auto; font-size: 0.9em; background: #f9f9f9; }
+        .chat-input-area { padding: 10px; border-top: 1px solid #eee; display: flex; gap: 5px; }
+        .chat-input-area input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+        .ai-msg { background: #e1bee7; padding: 8px 12px; border-radius: 12px; margin-bottom: 10px; align-self: flex-start; max-width: 80%; }
+        .user-msg { background: #cfd8dc; padding: 8px 12px; border-radius: 12px; margin-bottom: 10px; align-self: flex-end; max-width: 80%; margin-left: auto; }
+    </style>
+</head>
+<body>
+
+<div id="main-container">
+    <div class="section-card">
+        <div class="part-header">第一部分：心臟調節 Cardiac Regulation</div>
+        <div id="heart-viewport">
+            <svg id="heart-svg" viewBox="0 0 220 250">
+                <path class="vessels-dark" d="M60,10 L80,10 Q90,30 80,60 L60,60 Z" />
+                <path class="vessels-dark" d="M150,70 Q170,60 180,80 L160,100 Z" opacity="0.6" />
+                <path class="vessels" d="M90,20 Q115,0 140,20 L140,80 L90,80 Z" /> 
+                <path class="vessels" d="M70,40 Q50,30 40,50 L60,95 L80,85 Z" /> 
+                <path id="ventricle-body" class="heart-muscle" d="M65,80 L145,80 C165,80 185,120 165,190 C150,240 105,250 105,250 C105,250 60,240 45,190 C25,120 45,80 65,80 Z" />
+                <path d="M65,80 Q105,65 145,80" fill="none" stroke="#b71c1c" stroke-width="3"/>
+            </svg>
+            <div style="position: absolute; right: 50px; top: 50px; text-align: right; background: rgba(255,255,255,0.9); padding: 15px; border-radius: 10px; border: 1px solid #ddd;">
+                狀態 Status:<br> 
+                <b id="heart-state" style="color: var(--heart-red); font-size: 1.1em;">舒張期 Diastole</b><br><br>
+                心輸出量 Cardiac Output:<br>
+                <span id="co-val" style="font-weight: bold; font-size: 1.2em;">4.9</span> L/min
+            </div>
+        </div>
+        <div class="control-panel">
+            <div class="preset-group">
+                <button class="preset-btn active" onclick="setPreset(70, 70, this)">休息 Rest</button>
+                <button class="preset-btn" onclick="setPreset(140, 110, this)">運動 Exercise</button>
+            </div>
+            <div style="flex: 1;">
+                <label>心率 Heart Rate (HR): <b id="hr-disp">70</b> bpm</label>
+                <input type="range" id="hr-slider" min="40" max="180" value="70" style="width: 100%;">
+            </div>
+            <div style="flex: 1;">
+                <label>心搏量 Stroke Volume (SV): <b id="sv-disp">70</b> ml</label>
+                <input type="range" id="sv-slider" min="30" max="150" value="70" style="width: 100%;">
+            </div>
+            <div class="gauge-box" style="border-color: #ff5252;">
+                <span style="font-size: 0.75em;">動脈血壓 Arterial BP</span>
+                <span id="bp-result" class="gauge-val">35</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="part-header">第二部分：組織液與淋巴 Tissue Fluid & Lymphatics</div>
+        <div class="control-panel" style="background: #37474f;">
+            <div class="gauge-box">
+                <span style="font-size: 0.75em;">動脈端靜水壓 Entry HP</span>
+                <span id="hp-entry" class="gauge-val">35</span>
+            </div>
+            <div class="gauge-box" style="border-color: #03a9f4;">
+                <span style="font-size: 0.75em;">血漿滲透壓 Plasma OP</span>
+                <span class="gauge-val">25</span>
+            </div>
+            <div class="gauge-box">
+                <span style="font-size: 0.75em;">靜脈端靜水壓 Exit HP</span>
+                <span id="hp-exit" class="gauge-val">15</span>
+            </div>
+        </div>
+        <div id="viewport">
+            <div class="cell-layer" id="cellLayer"></div>
+            <svg class="vessel-svg" viewBox="0 0 1240 450">
+                <path d="M100,420 L1140,420" stroke="rgba(255,245,157,0.5)" stroke-width="20" stroke-linecap="round" fill="none" />
+                <text x="110" y="440" fill="#fbc02d" font-size="12" font-weight="bold">淋巴管 Lymphatic Vessel</text>
+                
+                <path id="path0" d="M0,225 L180,225 C350,50 890,50 1060,225 L1240,225" stroke="rgba(211,47,47,0.05)" stroke-width="24" fill="none" />
+                <path id="path1" d="M0,225 L180,225 C350,140 890,140 1060,225 L1240,225" stroke="rgba(211,47,47,0.05)" stroke-width="24" fill="none" />
+                <path id="path2" d="M0,225 L180,225 L1060,225 L1240,225" stroke="rgba(211,47,47,0.05)" stroke-width="24" fill="none" />
+                <path id="path3" d="M0,225 L180,225 C350,310 890,310 1060,225 L1240,225" stroke="rgba(211,47,47,0.05)" stroke-width="24" fill="none" />
+                <path id="path4" d="M0,225 L180,225 C350,400 890,400 1060,225 L1240,225" stroke="rgba(211,47,47,0.05)" stroke-width="24" fill="none" />
+            </svg>
+        </div>
+        <div class="legend-bar">
+            <div class="legend-item"><div class="dot" style="background:var(--rbc);"></div> 紅血球 RBC</div>
+            <div class="legend-item"><div class="dot" style="background:var(--water);"></div> 水分子 Water</div>
+            <div class="legend-item"><div class="dot" style="background:var(--glucose);"></div> 葡萄糖 Glucose</div>
+            <div class="legend-item"><div class="dot" style="background:var(--amino);"></div> 氨基酸 Amino acid</div>
+            <div class="legend-item"><div class="dot" style="background:#fbc02d;"></div> 淋巴液 Lymph</div> </div>
+    </div>
+</div>
+
+<div id="ai-button" onclick="toggleChat()">🤖</div>
+<div id="ai-chat-window">
+    <div class="chat-header"><span>AI 助手</span><span onclick="toggleChat()" style="cursor:pointer">✖</span></div>
+    <div class="chat-content" id="chat-box">
+        <div class="ai-msg">你好！我是你的助手。有什麼關於心臟、淋巴或組織液的問題嗎？<br>Hello! I'm your assistant. Any questions about the heart, lymph, or tissue fluid?</div>
+    </div>
+    <div class="chat-input-area">
+        <input type="text" id="user-input" placeholder="Type here...">
+        <button onclick="sendMessage()" style="background:var(--ai-primary); color:white; border:none; padding:5px 10px; border-radius:4px; cursor:pointer;">Send</button>
+    </div>
+</div>
+
+<script>
+    // --- 原有心臟邏輯保持不變 ---
+    let hr = 70, sv = 70, arteryHP = 35;
+    const heartSvg = document.getElementById('heart-svg');
+    const heartBody = document.getElementById('ventricle-body');
+    const heartStateTxt = document.getElementById('heart-state');
+    
+    function setPreset(newHr, newSv, btn) {
+        hr = newHr; sv = newSv;
+        document.getElementById('hr-slider').value = hr;
+        document.getElementById('sv-slider').value = sv;
+        document.getElementById('hr-disp').innerText = hr;
+        document.getElementById('sv-disp').innerText = sv;
+        document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+        if(btn) btn.classList.add('active');
+        updateCO();
+    }
+
+    function updateCO() {
+        let co = (hr * sv) / 1000;
+        document.getElementById('co-val').innerText = co.toFixed(1);
+        let calculatedBP = Math.round((co / 4.9) * 35);
+        calculatedBP = Math.min(65, Math.max(15, calculatedBP));
+        document.getElementById('bp-result').innerText = calculatedBP;
+        document.getElementById('hp-entry').innerText = calculatedBP;
+        document.getElementById('hp-exit').innerText = Math.max(10, calculatedBP - 20);
+        arteryHP = calculatedBP;
+    }
+
+    function beat() {
+        let cycle = 60000 / hr;
+        heartBody.style.transition = "d 0.12s cubic-bezier(0.4, 0, 0.2, 1)";
+        heartBody.setAttribute('d', `M78,80 L132,80 C145,80 160,120 150,190 C140,220 105,235 105,235 C105,235 70,220 60,190 C50,120 65,80 78,80 Z`);
+        heartSvg.style.transform = "scale(0.96) translateY(5px)";
+        heartStateTxt.innerHTML = "收縮期 Systole";
+        heartStateTxt.style.color = "#d32f2f";
+        setTimeout(() => {
+            heartBody.setAttribute('d', `M65,80 L145,80 C165,80 185,120 165,190 C150,240 105,250 105,250 C105,250 60,240 45,190 C25,120 45,80 65,80 Z`);
+            heartSvg.style.transform = "scale(1) translateY(0px)";
+            heartStateTxt.innerHTML = "舒張期 Diastole";
+            heartStateTxt.style.color = "#455a64";
+        }, cycle * 0.35);
+        setTimeout(beat, cycle);
+    }
+
+    document.getElementById('hr-slider').oninput = function() { hr=this.value; document.getElementById('hr-disp').innerText=hr; updateCO(); };
+    document.getElementById('sv-slider').oninput = function() { sv=this.value; document.getElementById('sv-disp').innerText=sv; updateCO(); };
+
+    // --- 組織液與淋巴邏輯 (核心修改處) ---
+    const viewport = document.getElementById('viewport');
+    const paths = [0,1,2,3,4].map(i => document.getElementById('path'+i));
+    let particles = [];
+    for(let i=0; i<84; i++) {
+        const c = document.createElement('div'); c.className = 'cell';
+        c.innerHTML = '<div class="nucleus"></div>';
+        document.getElementById('cellLayer').appendChild(c);
+    }
+
+    function createP(type) {
+        const pIdx = Math.floor(Math.random() * paths.length);
+        const el = document.createElement('div'); el.className = `p ${type}`;
+        if (type !== 'rbc') el.classList.add('mol');
+        viewport.appendChild(el);
+        // exited: 是否離開血管；inLymph: 是否進入淋巴
+        return { el, type, pIdx, progress: 0, exited: false, inLymph: false, drift: 0, side: Math.random() > 0.5 ? 1 : -1 };
+    }
+
+    function animate() {
+        if (Math.random() > 0.96) particles.push(createP('rbc'));
+        if (Math.random() > 0.35) {
+            let r = Math.random();
+            particles.push(createP(r < 0.7 ? 'water' : (r < 0.88 ? 'glucose' : 'amino')));
+        }
+
+        particles.forEach((p, i) => {
+            // 如果粒子已進入淋巴管，改走淋巴路徑（由左向右穩定移動）
+            if (p.inLymph) {
+                let currentX = parseFloat(p.el.style.left) || 100;
+                let nextX = currentX + 1.2;
+                p.el.style.left = nextX + 'px';
+                p.el.style.top = '420px'; // 淋巴管中心高度
+                
+                // 淋巴粒子流出視窗，移除
+                if (nextX > 1180) { p.el.remove(); particles.splice(i, 1); }
+                return;
+            }
+
+            let localHP = arteryHP - (p.progress * 20);
+            p.progress += (p.progress < 0.15) ? 0.006 * (arteryHP/35) : (p.progress > 0.85 ? 0.004 : 0.0018);
+            const pt = paths[p.pIdx].getPointAtLength(p.progress * paths[p.pIdx].getTotalLength());
+            let x = pt.x, y = pt.y;
+
+            if (p.type !== 'rbc') {
+                // 動脈端：推力 (HP > OP) 導致溢出
+                if (p.progress > 0.2 && p.progress < 0.45 && !p.exited && Math.random() < ((localHP-25)*0.015)) p.exited = true;
+                
+                if (p.exited) {
+                    // 溢出血管後的垂直偏離
+                    if (p.progress < 0.65) p.drift = Math.min(p.drift + (localHP/7), 90);
+                    y += p.drift * p.side;
+
+                    //核心修改：少部分組織液（水分子）進入淋巴管
+                    // 如果水分子向下方偏移 (side=1) 且進度在中後段，有機率進入淋巴管 (機率約 10%)
+                    if (y > 400 && p.side === 1 && p.type === 'water' && Math.random() < 0.1) {
+                        p.inLymph = true;
+                        p.drift = 0; // 歸位到淋巴管高度
+                        p.el.classList.add('lymph-p'); // 改變顏色
+                        p.el.style.top = '420px';
+                        p.el.style.left = x + 'px';
+                    }
+
+                    // 靜脈端：重吸收 (即使溢出，機率也會隨滲透壓降低)
+                    if (p.exited && !p.inLymph && p.progress > 0.75) {
+                        p.drift *= 0.85; if (Math.abs(p.drift) < 1.5) p.exited = false;
+                    }
+                }
+            }
+            // 淋巴外的粒子正常更新位置
+            if(!p.inLymph) {
+                p.el.style.left = x + 'px'; p.el.style.top = y + 'px';
+            }
+            if (p.progress >= 1) { p.el.remove(); particles.splice(i, 1); }
+        });
+        requestAnimationFrame(animate);
+    }
+
+    // --- AI Chatbot 雙語邏輯保持不變 ---
+    function toggleChat() { const c = document.getElementById('ai-chat-window'); c.style.display = (c.style.display==='flex'?'none':'flex'); }
+    function sendMessage() {
+        const input = document.getElementById('user-input');
+        const box = document.getElementById('chat-box');
+        if(!input.value) return;
+        const userDiv = document.createElement('div');
+        userDiv.className = 'user-msg'; userDiv.innerText = input.value;
+        box.appendChild(userDiv);
+        const aiDiv = document.createElement('div');
+        aiDiv.className = 'ai-msg';
+        
+        const val = input.value.toLowerCase();
+        let reply = " Interesting question! Focus on HP vs OP, or how lymph drains. / 很有趣！請關注靜水壓與滲透壓的對抗，或淋巴如何收集液體。";
+        if(val.includes('運動') || val.includes('exercise')) reply = " Exercise increases HP, causing more fluid leakage. / 運動增加靜水壓，導致組織液滲出增加。";
+        if(val.includes('淋巴') || val.includes('lymph')) reply = " Lymphatics collect excess fluid and return it to the blood. / 淋巴管收集多餘組織液並將其送回血液。";
+        aiDiv.innerText = reply;
+        setTimeout(() => { box.appendChild(aiDiv); box.scrollTop = box.scrollHeight; }, 600);
+        input.value = '';
+    }
+
+    updateCO(); beat(); animate();
+</script>
+</body>
+</html>
